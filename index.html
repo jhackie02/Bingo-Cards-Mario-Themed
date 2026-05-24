@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Classroom Bingo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Balsamiq+Sans:wght@700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --mario-sky: #5C94FC;
+            --mario-brick: #CB4400;
+            --mario-dirt: #E79C62;
+            --mario-pipe: #00A800;
+        }
+
+        body {
+            background-color: var(--mario-sky);
+            font-family: 'Press Start 2P', cursive;
+            color: white;
+            overflow: hidden; /* Prevent body scroll */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pixel-border {
+            box-shadow: 0 4px 0 0 #000, 0 -4px 0 0 #000, 4px 0 0 0 #000, -4px 0 0 0 #000;
+        }
+
+        .ground {
+            height: 40px;
+            background: linear-gradient(45deg, var(--mario-brick) 25%, transparent 25%),
+                        linear-gradient(-45deg, var(--mario-brick) 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, var(--mario-brick) 75%),
+                        linear-gradient(-45deg, transparent 75%, var(--mario-brick) 75%);
+            background-size: 20px 20px;
+            background-color: var(--mario-dirt);
+            border-top: 4px solid #000;
+            flex-shrink: 0;
+        }
+
+        /* CARD SIZING */
+        .card-container {
+            perspective: 1000px;
+            width: 100%;
+            height: 100%; /* Fill the grid cell */
+            min-height: 0;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            cursor: pointer;
+        }
+
+        .card-inner.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 4px solid #000;
+            padding: 10px;
+            text-align: center;
+            border-radius: 12px;
+        }
+
+        .card-front {
+            background-color: #fff;
+            color: #000;
+        }
+
+        .card-back {
+            background-color: #F8B800;
+            transform: rotateY(180deg);
+        }
+
+        .card-image-box {
+            width: 100%;
+            flex-grow: 1; /* Take up all available space */
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .card-image-box img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .vocab-text {
+            font-family: 'Balsamiq Sans', cursive;
+            font-size: 2.5vh; /* Responsive based on viewport height */
+            word-break: break-word;
+            line-height: 1.1;
+            color: #000;
+            font-weight: 700;
+        }
+
+        .monster-bg { background-color: #000 !important; color: white !important; }
+
+        /* INPUTS */
+        input, select {
+            font-family: 'Press Start 2P', cursive;
+            background: #000;
+            color: #fff;
+            border: 2px solid #fff;
+            padding: 5px;
+            font-size: 10px;
+        }
+
+        .btn-mario {
+            background-color: var(--mario-brick);
+            border: 4px solid #000;
+            padding: 10px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .btn-mario:hover { transform: scale(1.05); }
+
+        .active-turn {
+            animation: bounce 0.5s infinite alternate;
+            border: 6px solid #FFD700 !important; /* Thicker gold border */
+            background: rgba(255, 255, 255, 0.2) !important;
+            transform: scale(1.02);
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-8px); }
+        }
+
+        /* SIDEBAR HUD */
+        #gameLayout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        #sidebar {
+            background-color: rgba(0, 0, 0, 0.9);
+            border-right: 4px solid #000;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* No scroll here if possible */
+        }
+
+        #hud {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex-grow: 1; /* Fills the space */
+        }
+
+        .hud-team-card {
+            flex-grow: 1; /* Stretch teams to fill height */
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 4px solid transparent;
+            background: rgba(255,255,255,0.05);
+            min-height: 0;
+        }
+
+        .hud-face-container {
+            height: 80%; /* Large icons */
+            aspect-ratio: 1/1;
+            border: 3px solid white;
+            background: white;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hud-score {
+            font-size: 4vh;
+            font-weight: bold;
+        }
+
+        .hud-name {
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        /* BOARD AREA */
+        #mainBoardArea {
+            padding: 20px;
+            background-color: var(--mario-sky);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        #gameGrid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 20px;
+            width: 100%;
+            height: 100%;
+            max-width: 1400px; /* Keep it from stretching too wide on ultrawide */
+        }
+
+        /* SETUP SCREEN */
+        .paste-zone {
+            height: 60px;
+            border: 2px dashed #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #222;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .team-color-0 { color: #ff4444; border-color: #ff4444; }
+        .team-color-1 { color: #44ccff; border-color: #44ccff; }
+        .team-color-2 { color: #44ff44; border-color: #44ff44; }
+        .team-color-3 { color: #ffcc44; border-color: #ffcc44; }
+
+        .coin-icon {
+            font-size: 80px;
+            color: #FFD700;
+            text-shadow: 4px 4px #000;
+            animation: coin-spin 1s infinite;
+        }
+
+        @keyframes coin-spin {
+            0% { transform: scaleX(1); }
+            50% { transform: scaleX(0); }
+            100% { transform: scaleX(1); }
+        }
+
+        #setupScreen { overflow-y: auto; }
+    </style>
+</head>
+<body>
+
+    <!-- SETUP SCREEN -->
+    <div id="setupScreen" class="p-4 md:p-8 flex-grow">
+        <h1 class="text-xl md:text-3xl text-center mb-8" style="text-shadow: 4px 4px #000;">BINGO DASHBOARD</h1>
+        
+        <div class="max-w-6xl mx-auto bg-black bg-opacity-70 p-6 pixel-border mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 border-b border-gray-600 pb-6">
+                <div>
+                    <label class="block text-[10px] mb-2 text-yellow-400">NUMBER OF TEAMS:</label>
+                    <select id="playerCount" class="w-full mb-4" onchange="updatePlayerVisibility()">
+                        <option value="2">2 Teams</option>
+                        <option value="3">3 Teams</option>
+                        <option value="4">4 Teams</option>
+                    </select>
+                    
+                    <label class="block text-[10px] mb-2 text-yellow-400">POINTS TO WIN:</label>
+                    <input type="number" id="targetScore" value="10" class="w-full">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[8px] mb-2 text-yellow-400">MONSTER ASSET:</label>
+                        <div class="paste-zone mb-2" onclick="triggerAssetUpload('monsterImg')" onpaste="handleAssetPaste(event, 'monsterImg')">
+                            <div id="monsterImgContainer" class="flex items-center justify-center h-full w-full pointer-events-none">
+                                <span class="text-[6px] opacity-50">Paste Monster</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[8px] mb-2 text-yellow-400">COIN ASSET:</label>
+                        <div class="paste-zone mb-2" onclick="triggerAssetUpload('coinImg')" onpaste="handleAssetPaste(event, 'coinImg')">
+                            <div id="coinImgContainer" class="flex items-center justify-center h-full w-full pointer-events-none">
+                                <span class="text-[6px] opacity-50">Paste Coin</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="teamsConfig" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 border-b border-gray-600 pb-6"></div>
+
+            <h3 class="text-center text-sm mb-4">CHALLENGE CARDS (12)</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3" id="setupGrid"></div>
+
+            <div class="mt-8 flex flex-col sm:flex-row gap-4">
+                <button onclick="clearAll()" class="btn-mario bg-gray-700 flex-1">RESET</button>
+                <button onclick="saveToFile()" class="btn-mario bg-blue-700 flex-1">EXPORT</button>
+                <button onclick="triggerLoad()" class="btn-mario bg-blue-700 flex-1">IMPORT</button>
+                <button onclick="startGame()" class="btn-mario bg-green-600 flex-1 text-lg">START MISSION</button>
+            </div>
+            
+            <input type="file" id="fileInput" class="hidden" accept=".json" onchange="loadFromFile(event)">
+            <input type="file" id="assetUpload" class="hidden" accept="image/*" onchange="handleAssetUpload(event)">
+        </div>
+    </div>
+
+    <!-- INSTRUCTIONS -->
+    <div id="instructionOverlay" class="fixed inset-0 bg-black bg-opacity-95 z-50 hidden flex items-center justify-center p-4">
+        <div class="max-w-2xl w-full bg-blue-900 p-8 md:p-12 pixel-border">
+            <h2 class="text-2xl md:text-4xl mb-10 text-yellow-400 text-center" style="text-shadow: 3px 3px #000;">HOW TO PLAY</h2>
+            <div class="space-y-6 md:space-y-8 text-white text-left font-sans">
+                <div class="flex items-start gap-4">
+                    <span class="bg-yellow-400 text-black px-3 py-1 rounded font-bold">1</span>
+                    <p class="text-xl md:text-3xl leading-snug">Identify the <span class="text-green-400 font-bold">VOCAB</span> and <span class="text-green-400 font-bold">PICTURE</span>.</p>
+                </div>
+                <div class="flex items-start gap-4">
+                    <span class="bg-yellow-400 text-black px-3 py-1 rounded font-bold">2</span>
+                    <p class="text-xl md:text-3xl leading-snug">Flip the card to find a <span class="text-yellow-300 font-bold underline">COIN (+1)</span>.</p>
+                </div>
+                <div class="flex items-start gap-4">
+                    <span class="bg-yellow-400 text-black px-3 py-1 rounded font-bold">3</span>
+                    <p class="text-xl md:text-3xl leading-snug">BEWARE: 3 <span class="text-red-500 font-bold">MONSTERS</span> are hidden!</p>
+                </div>
+            </div>
+            <div class="mt-12 text-center">
+                <button onclick="closeInstructions()" class="btn-mario px-12 py-4 text-xl md:text-2xl hover:bg-green-600">LET'S GO!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="gameScreen" class="hidden flex-grow flex flex-col">
+        <div id="gameLayout">
+            <aside id="sidebar">
+                <div class="flex justify-between items-center mb-4 border-b-2 border-gray-700 pb-2">
+                    <div>
+                        <h2 class="text-[8px] text-yellow-400">TARGET</h2>
+                        <div id="displayTarget" class="text-xl text-yellow-400">10</div>
+                    </div>
+                    <div class="text-right">
+                        <h2 class="text-[8px] text-yellow-400">TURN</h2>
+                        <div id="turnIndicator" class="text-[10px] p-1 bg-black pixel-border">TEAM A</div>
+                    </div>
+                </div>
+
+                <div id="hud">
+                    <!-- Teams generated here -->
+                </div>
+
+                <div class="pt-4 text-center">
+                    <button onclick="backToSetup()" class="text-[8px] underline opacity-50 hover:opacity-100">DASHBOARD</button>
+                </div>
+            </aside>
+
+            <main class="relative bg-sky-500" id="mainBoardArea">
+                <div id="monsterAlert" class="absolute top-10 left-1/2 -translate-x-1/2 bg-red-600 text-white px-8 py-4 pixel-border z-20 hidden text-[12px] animate-pulse">
+                    MONSTER FOUND! RESETTING...
+                </div>
+                <div id="gameGrid"></div>
+            </main>
+        </div>
+    </div>
+
+    <!-- WIN SCREEN -->
+    <div id="winScreen" class="fixed inset-0 bg-black bg-opacity-95 z-[60] hidden flex flex-col items-center justify-center">
+        <div id="winFace" class="w-64 h-64 mb-6 border-8 border-yellow-400 overflow-hidden bg-white"></div>
+        <h1 id="winnerName" class="text-2xl md:text-6xl mb-8 animate-bounce text-center px-4" style="text-shadow: 4px 4px #CB4400;">TEAM A WINS!</h1>
+        <div class="flex gap-4">
+            <button onclick="rematch()" class="btn-mario bg-green-600 px-8 text-xl">REMATCH</button>
+            <button onclick="backToSetup()" class="btn-mario bg-gray-600 px-8 text-xl">EXIT</button>
+        </div>
+    </div>
+
+    <div class="ground"></div>
+
+    <script>
+        const appId = "mario-bingo-v3";
+        let cardData = Array(12).fill().map(() => ({ text: "", image: "" }));
+        let assets = {
+            monsterImg: "",
+            coinImg: "",
+            teams: [
+                { name: "TEAM A", face: "" },
+                { name: "TEAM B", face: "" },
+                { name: "TEAM C", face: "" },
+                { name: "TEAM D", face: "" }
+            ]
+        };
+        
+        let activeAssetKey = null;
+        let activeAssetIndex = null;
+        let isProcessingFlip = false;
+
+        let gameState = {
+            playerCount: 2,
+            scores: [0, 0, 0, 0],
+            target: 10,
+            monsterIndices: [],
+            flippedIndices: [],
+            currentTurnIdx: 0 
+        };
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        window.onload = () => {
+            loadFromLocalStorage();
+            syncDashboardInputs();
+        };
+
+        function playSynth(freqs, type, duration) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freqs[0], audioCtx.currentTime);
+            if(freqs[1]) osc.frequency.exponentialRampToValueAtTime(freqs[1], audioCtx.currentTime + duration);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const sounds = {
+            coin: () => playSynth([987, 1318], 'triangle', 0.3),
+            monster: () => playSynth([200, 50], 'sawtooth', 0.6),
+            win: () => {
+                playSynth([523, 1046], 'square', 0.2);
+                setTimeout(() => playSynth([659, 1318], 'square', 0.4), 200);
+            }
+        };
+
+        function triggerAssetUpload(key, index = null) {
+            activeAssetKey = key;
+            activeAssetIndex = index;
+            document.getElementById('assetUpload').click();
+        }
+
+        function handleAssetUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => processAssetData(event.target.result);
+            reader.readAsDataURL(file);
+        }
+
+        function handleAssetPaste(e, key, index = null) {
+            e.preventDefault();
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.kind === 'file') {
+                    const blob = item.getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        activeAssetKey = key;
+                        activeAssetIndex = index;
+                        processAssetData(event.target.result);
+                    };
+                    reader.readAsDataURL(blob);
+                }
+            }
+        }
+
+        function processAssetData(dataUrl) {
+            if (activeAssetKey === 'monsterImg') assets.monsterImg = dataUrl;
+            else if (activeAssetKey === 'coinImg') assets.coinImg = dataUrl;
+            else if (activeAssetKey === 'teamFace') assets.teams[activeAssetIndex].face = dataUrl;
+            else if (activeAssetKey === 'cardImg') cardData[activeAssetIndex].image = dataUrl;
+            
+            syncDashboardInputs();
+            saveToLocalStorage();
+        }
+
+        function removeAsset(event, key, index = null) {
+            event.stopPropagation();
+            if (key === 'monsterImg') assets.monsterImg = "";
+            else if (key === 'coinImg') assets.coinImg = "";
+            else if (key === 'teamFace') assets.teams[index].face = "";
+            else if (key === 'cardImg') cardData[index].image = "";
+            syncDashboardInputs();
+            saveToLocalStorage();
+        }
+
+        function updateAssetDisplay(containerId, dataUrl, key, index = null) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            if (dataUrl) {
+                container.innerHTML = `<button class="remove-btn" onclick="removeAsset(event, '${key}', ${index})">X</button><img src="${dataUrl}" class="h-full object-contain">`;
+            } else {
+                container.innerHTML = `<span class="text-[6px] opacity-50">Upload</span>`;
+            }
+        }
+
+        function updatePlayerVisibility() {
+            gameState.playerCount = parseInt(document.getElementById('playerCount').value);
+            const container = document.getElementById('teamsConfig');
+            container.innerHTML = '';
+            for (let i = 0; i < gameState.playerCount; i++) {
+                const team = assets.teams[i];
+                container.innerHTML += `
+                    <div class="p-3 bg-gray-800 bg-opacity-50 rounded border-2 team-color-${i}">
+                        <input type="text" value="${team.name}" onchange="assets.teams[${i}].name=this.value; saveToLocalStorage();" class="w-full mb-2 text-[8px]">
+                        <div class="paste-zone h-[50px]" onclick="triggerAssetUpload('teamFace', ${i})" onpaste="handleAssetPaste(event, 'teamFace', ${i})">
+                            <div id="faceContainer${i}" class="flex items-center justify-center h-full w-full pointer-events-none">
+                                ${team.face ? `<button class="remove-btn" onclick="removeAsset(event, 'teamFace', ${i})">X</button><img src="${team.face}" class="h-full object-contain">` : '<span class="text-[6px]">Face</span>'}
+                            </div>
+                        </div>
+                    </div>`;
+            }
+            saveToLocalStorage();
+        }
+
+        function renderSetupGrid() {
+            const container = document.getElementById('setupGrid');
+            container.innerHTML = cardData.map((data, i) => `
+                <div class="bg-gray-900 p-2 border border-gray-700">
+                    <input type="text" placeholder="Word" value="${data.text}" onchange="cardData[${i}].text=this.value; saveToLocalStorage();" class="w-full mb-1 text-[8px]">
+                    <div class="paste-zone text-[6px] h-[40px]" onclick="triggerAssetUpload('cardImg', ${i})" onpaste="handleAssetPaste(event, 'cardImg', ${i})">
+                        ${data.image ? `<button class="remove-btn" onclick="removeAsset(event, 'cardImg', ${i})">X</button><img src="${data.image}" class="h-full object-contain">` : 'Pic'}
+                    </div>
+                </div>`).join('');
+        }
+
+        function syncDashboardInputs() {
+            document.getElementById('playerCount').value = gameState.playerCount;
+            document.getElementById('targetScore').value = gameState.target;
+            updateAssetDisplay('monsterImgContainer', assets.monsterImg, 'monsterImg');
+            updateAssetDisplay('coinImgContainer', assets.coinImg, 'coinImg');
+            updatePlayerVisibility();
+            renderSetupGrid();
+        }
+
+        function startGame() {
+            gameState.target = parseInt(document.getElementById('targetScore').value) || 10;
+            gameState.scores = Array(gameState.playerCount).fill(0);
+            gameState.currentTurnIdx = 0;
+            gameState.flippedIndices = [];
+            isProcessingFlip = false;
+            setupMonsters();
+            document.getElementById('setupScreen').classList.add('hidden');
+            document.getElementById('instructionOverlay').classList.remove('hidden');
+            renderHUD();
+            renderGameBoard();
+            updateScores();
+        }
+
+        function setupMonsters() {
+            let pool = Array.from({length: 12}, (_, i) => i);
+            gameState.monsterIndices = [];
+            for (let i = 0; i < 3; i++) {
+                const randomIdx = Math.floor(Math.random() * pool.length);
+                gameState.monsterIndices.push(pool.splice(randomIdx, 1)[0]);
+            }
+        }
+
+        function renderHUD() {
+            const container = document.getElementById('hud');
+            container.innerHTML = '';
+            for (let i = 0; i < gameState.playerCount; i++) {
+                const team = assets.teams[i];
+                container.innerHTML += `
+                    <div id="hudTeam${i}" class="hud-team-card">
+                        <div class="hud-face-container team-color-${i}">
+                            ${team.face ? `<img src="${team.face}" class="w-full h-full object-contain">` : '<div class="text-3xl">👤</div>'}
+                        </div>
+                        <div class="flex-grow">
+                            <div class="hud-name team-color-${i} truncate">${team.name}</div>
+                            <div id="scoreDisplay${i}" class="hud-score">00</div>
+                        </div>
+                    </div>`;
+            }
+        }
+
+        function renderGameBoard() {
+            const grid = document.getElementById('gameGrid');
+            grid.innerHTML = cardData.map((data, i) => `
+                <div class="card-container" onclick="flipCard(${i})">
+                    <div class="card-inner" id="card-${i}">
+                        <div class="card-front">
+                            <div class="card-image-box">
+                                ${data.image ? `<img src="${data.image}">` : '<div class="text-5xl text-gray-200">?</div>'}
+                            </div>
+                            <div class="vocab-text">${data.text || "???"}</div>
+                        </div>
+                        <div class="card-back ${gameState.monsterIndices.includes(i) ? 'monster-bg' : ''}">
+                            ${gameState.monsterIndices.includes(i) ? 
+                                (assets.monsterImg ? `<img src="${assets.monsterImg}" class="max-h-[85%]">` : '<div class="text-8xl">👾</div>') : 
+                                (assets.coinImg ? `<img src="${assets.coinImg}" class="max-h-[85%]">` : '<div class="coin-icon">©</div>')}
+                        </div>
+                    </div>
+                </div>`).join('');
+        }
+
+        function flipCard(index) {
+            if (gameState.flippedIndices.includes(index) || isProcessingFlip) return;
+            const cardInner = document.getElementById(`card-${index}`);
+            cardInner.classList.add('flipped');
+            gameState.flippedIndices.push(index);
+
+            if (gameState.monsterIndices.includes(index)) {
+                isProcessingFlip = true;
+                sounds.monster();
+                document.getElementById('monsterAlert').classList.remove('hidden');
+                setTimeout(() => {
+                    gameState.currentTurnIdx = (gameState.currentTurnIdx + 1) % gameState.playerCount;
+                    gameState.flippedIndices = [];
+                    setupMonsters();
+                    renderGameBoard();
+                    document.getElementById('monsterAlert').classList.add('hidden');
+                    isProcessingFlip = false;
+                    updateScores();
+                }, 1500);
+            } else {
+                sounds.coin();
+                gameState.scores[gameState.currentTurnIdx]++;
+                gameState.currentTurnIdx = (gameState.currentTurnIdx + 1) % gameState.playerCount;
+                updateScores();
+                checkWin();
+            }
+        }
+
+        function updateScores() {
+            for (let i = 0; i < gameState.playerCount; i++) {
+                const el = document.getElementById(`scoreDisplay${i}`);
+                if (el) el.innerText = gameState.scores[i].toString().padStart(2, '0');
+                const hudEl = document.getElementById(`hudTeam${i}`);
+                if (hudEl) hudEl.classList.toggle('active-turn', i === gameState.currentTurnIdx);
+            }
+            const turnIndicator = document.getElementById('turnIndicator');
+            if (turnIndicator) {
+                turnIndicator.innerText = assets.teams[gameState.currentTurnIdx].name;
+                turnIndicator.style.color = ['#ff4444','#44ccff','#44ff44','#ffcc44'][gameState.currentTurnIdx];
+            }
+            document.getElementById('displayTarget').innerText = gameState.target;
+        }
+
+        function checkWin() {
+            gameState.scores.forEach((score, idx) => { if (score >= gameState.target) endGame(idx); });
+        }
+
+        function endGame(teamIdx) {
+            const team = assets.teams[teamIdx];
+            sounds.win();
+            document.getElementById('winnerName').innerText = `${team.name} WINS!`;
+            document.getElementById('winFace').innerHTML = team.face ? `<img src="${team.face}" class="w-full h-full object-contain">` : '<div class="text-9xl flex items-center justify-center h-full">🏆</div>';
+            document.getElementById('winScreen').classList.remove('hidden');
+        }
+
+        function rematch() {
+            document.getElementById('winScreen').classList.add('hidden');
+            startGame();
+        }
+
+        function closeInstructions() {
+            document.getElementById('instructionOverlay').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+        }
+
+        function backToSetup() {
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('winScreen').classList.add('hidden');
+            document.getElementById('setupScreen').classList.remove('hidden');
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem(appId + '_data', JSON.stringify({ cardData, assets, gameState }));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem(appId + '_data');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.cardData) cardData = parsed.cardData;
+                    if (parsed.assets) assets = parsed.assets;
+                    if (parsed.gameState) {
+                        gameState.playerCount = parsed.gameState.playerCount;
+                        gameState.target = parsed.gameState.target;
+                    }
+                } catch(e) {}
+            }
+        }
+
+        function clearAll() {
+            if(confirm("Factory reset?")) { localStorage.removeItem(appId + '_data'); location.reload(); }
+        }
+
+        function saveToFile() {
+            const blob = new Blob([JSON.stringify({ cardData, assets, playerCount: gameState.playerCount, target: gameState.target })], {type: 'application/json'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `bingo_dash.json`;
+            a.click();
+        }
+
+        function triggerLoad() { document.getElementById('fileInput').click(); }
+
+        function loadFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const loaded = JSON.parse(e.target.result);
+                cardData = loaded.cardData || cardData;
+                assets = loaded.assets || assets;
+                gameState.playerCount = loaded.playerCount || 2;
+                gameState.target = loaded.target || 10;
+                syncDashboardInputs();
+                saveToLocalStorage();
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
